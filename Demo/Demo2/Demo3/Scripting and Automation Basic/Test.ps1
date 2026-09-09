@@ -1,10 +1,14 @@
 foreach ($computer in $computers) {
-$online = test-connection -computername $computer -count 1 -quiet -ErrorAction SilentlyContinue
-[pscustomobject]@{
-ComputerName = $computer
-status = if ($online) { "online (ping reply)"} else { "offline (no ping reply)"}
+if (Test-Connection -ComputerName $computer -Count 1 -Quiet) {
+    Write-Host "$computer is online" -ForegroundColor Green
+} else{
+    write-host "$computer is offline" -ForegroundColor Red
 }
 }
+param(
+    [parameter(Mandatory=$true)]
+    [string]$folderpath
+)
 $files = get-childitem -path $folderpath -file -Recurse
 
 foreach ($file in $files) {
@@ -37,7 +41,7 @@ register-scheduledtask -taskname $taskname -action $action -trigger $trigger -ru
 write-host "scheduled task '$taskname' created to run at startup."
 
 $source = "c:\logs"
-$destinationroot = "d:\backups"
+$destinationroot = "e:\backups"
 
 $today = get-date -format "yyyy-MM-dd"
 $destination = join-path $destinationroot $today
