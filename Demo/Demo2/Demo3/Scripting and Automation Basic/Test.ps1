@@ -1,3 +1,5 @@
+$computers = get-content -path $computerlistpath
+
 foreach ($computer in $computers) {
 if (Test-Connection -ComputerName $computer -Count 1 -Quiet) {
     Write-Host "$computer is online" -ForegroundColor Green
@@ -5,6 +7,7 @@ if (Test-Connection -ComputerName $computer -Count 1 -Quiet) {
     write-host "$computer is offline" -ForegroundColor Red
 }
 }
+
 param(
     [parameter(Mandatory=$true)]
     [string]$folderpath
