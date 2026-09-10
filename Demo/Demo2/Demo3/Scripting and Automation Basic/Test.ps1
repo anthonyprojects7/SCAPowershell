@@ -1,3 +1,7 @@
+#This script pings a list of computers and checks if the are online or offline. 
+$computerlistpath = "C:\users\documents\computers.txt"
+$computer = get-content -path $computerlistpath
+
 foreach ($computer in $computers) {
 if (Test-Connection -ComputerName $computer -Count 1 -Quiet) {
     Write-Host "$computer is online" -ForegroundColor Green
@@ -5,6 +9,8 @@ if (Test-Connection -ComputerName $computer -Count 1 -Quiet) {
     write-host "$computer is offline" -ForegroundColor Red
 }
 }
+
+#This script check the size of files in a folder and list files larger than 10MB.
 param(
     [parameter(Mandatory=$true)]
     [string]$folderpath
@@ -17,6 +23,7 @@ foreach ($file in $files) {
     }
 }
 
+#This script takes a username and retrieves the user's information from Active Directory. 
 param(
     [parameter(Mandatory=$true)]
     [string]$username
@@ -28,6 +35,7 @@ write-host "email: $($user.mail)"
 write-host "enabled: $($user.Enabled)"
 write-host "last logon: $($user.LastLogonDate)"
 
+#This script creates a scheduled task to run a PowerShell script at startup.
 param(
     [parameter(Mandatory=$true)]
     [string]$scriptpath
@@ -40,6 +48,7 @@ register-scheduledtask -taskname $taskname -action $action -trigger $trigger -ru
 
 write-host "scheduled task '$taskname' created to run at startup."
 
+#This script backs up files from "C:\Logs" to "E:\Backups" with today's date as the folder name.
 $source = "c:\logs"
 $destinationroot = "e:\backups"
 
