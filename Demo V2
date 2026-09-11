@@ -1,0 +1,128 @@
+<#
+.SYNOPSIS
+    Server maintenance script:
+    - Purges outdated cache/temp files
+    - Compresses old logs
+    - Empties recycle bins (server-safe)
+    - Emails a maintenance report to admins
+
+.DESCRIPTION
+    Designed for server environments. Silent, safe, and fully automated.
+#>
+
+# -------------------------------
+# CONFIGURATION
+# -------------------------------
+
+# Log and report paths
+$LogRoot        = "C:\ServerLogs"
+$ArchiveRoot    = "C:\ServerLogs\Archive"
+$ReportFile     = "C:\ServerLogs\MaintenanceReport.txt"
+
+# Age thresholds
+$CacheAgeDays   = 14
+$LogAgeDays     = 30
+
+# Email settings
+$EmailFrom      = "server-maint@yourdomain.com"
+$EmailTo        = "admins@yourdomain.com"
+$EmailSubject   = "Server Maintenance Report - $(hostname)"
+$SMTPServer     = "smtp.yourdomain.com"
+
+# -------------------------------
+# START REPORT
+# -------------------------------
+
+"=== SERVER MAINTENANCE REPORT ===" | Out-File $ReportFile
+"Server: $(hostname)" | Out-File $ReportFile -Append
+"Timestamp: $(Get-Date)" | Out-File $ReportFile -Append
+"" | Out-File $ReportFile -Append
+
+# -------------------------------
+# 1. CLEAN CACHE/TEMP DIRECTORIES
+# -------------------------------
+
+$CachePaths = @(
+    "$env:SystemRoot\Temp",
+    "$env:LOCALAPPDATA\Temp",
+    "$env:TEMP"
+)
+
+$CacheCutoff = (Get-Date).AddDays(-$CacheAgeDays)
+
+"--- Cache Cleanup ---" | Out-File $ReportFile -Append
+
+foreach ($path in $CachePaths) {
+    if (Test-Path $path) {
+        $items = Get-ChildItem $path -Recurse -Force -ErrorAction SilentlyContinue |
+                 Where-Object { $_.LastWriteTime -lt $CacheCutoff }
+
+        $count = $items.Count
+        "Purging $count items from $path" | Out-File $ReportFile -Append
+
+        $items | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+    }
+}
+
+"" | Out-File $ReportFile -Append
+
+# -------------------------------
+# 2. EMPTY RECYCLE BIN (SERVER SAFE)
+# -------------------------------
+
+"--- Recycle Bin Cleanup ---" | Out-File $ReportFile -Append
+
+try {
+    Clear-RecycleBin -Force -ErrorAction SilentlyContinue
+    "Recycle bin emptied successfully." | Out-File $ReportFile -Append
+} catch {
+    "Recycle bin cleanup skipped or failed." | Out-File $ReportFile -Append
+}
+
+"" | Out-File $ReportFile -Append
+
+# -------------------------------
+# 3. COMPRESS OLD LOGS
+# -------------------------------
+
+"--- Log Compression ---" | Out-File $ReportFile -Append
+
+if (!(Test-Path $ArchiveRoot)) {
+    New-Item -ItemType Directory -Path $ArchiveRoot | Out-Null
+}
+
+$LogCutoff = (Get-Date).AddDays(-$LogAgeDays)
+
+$OldLogs = Get-ChildItem $LogRoot -File -Recurse |
+           Where-Object { $_.LastWriteTime -lt $LogCutoff }
+
+foreach ($log in $OldLogs) {
+    $zipName = Join-Path $ArchiveRoot ($log.BaseName + ".zip")
+    Compress-Archive -Path $log.FullName -DestinationPath $zipName -Update
+    Remove-Item $log.FullName -Force
+
+    "Compressed and archived: $($log.Name)" | Out-File $ReportFile -Append
+}
+
+"" | Out-File $ReportFile -Append
+
+# -------------------------------
+# 4. EMAIL REPORT
+# -------------------------------
+
+"--- Emailing Report ---" | Out-File $ReportFile -Append
+
+try {
+    Send-MailMessage -From $EmailFrom `
+                     -To $EmailTo `
+                     -Subject $EmailSubject `
+                     -Body (Get-Content $ReportFile | Out-String) `
+                     -SmtpServer $SMTPServer
+
+    "Report emailed to $EmailTo" | Out-File $ReportFile -Append
+} catch {
+    "Failed to send email report." | Out-File $ReportFile -Append
+}
+
+"" | Out-File $ReportFile -Append
+"=== Maintenance Complete ===" | Out-File $ReportFile -Append
